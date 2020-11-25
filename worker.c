@@ -2,8 +2,8 @@
  * Operating Systems <2INCO> Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Niels Gorter (1332678)
+ * Ruben Wolters (1342355)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
@@ -15,19 +15,18 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <errno.h>          // for perror()
-#include <unistd.h>         // for getpid()
-#include <mqueue.h>         // for mq-stuff
-#include <time.h>           // for time()
+#include <errno.h>  // for perror()
+#include <unistd.h> // for getpid()
+#include <mqueue.h> // for mq-stuff
+#include <time.h>   // for time()
 #include <complex.h>
 
 #include "common.h"
 #include "md5s.h"
 
-static void rsleep (int t);
+static void rsleep(int t);
 
-
-int main (int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // TODO:
     // (see message_queue_test() in interprocess_basic.c)
@@ -35,11 +34,11 @@ int main (int argc, char * argv[])
     //  * repeatingly:
     //      - read from a message queue the new job to do
     //      - wait a random amount of time (e.g. rsleep(10000);)
-    //      - do that job 
+    //      - do that job
     //      - write the results to a message queue
     //    until there are no more tasks to do
     //  * close the message queues
-    
+
     return (0);
 }
 
@@ -50,16 +49,14 @@ int main (int argc, char * argv[])
  * between 0 and t microseconds
  * At the first call, the random generator is seeded with the current time
  */
-static void rsleep (int t)
+static void rsleep(int t)
 {
     static bool first_call = true;
-    
+
     if (first_call == true)
     {
-        srandom (time (NULL) % getpid ());
+        srandom(time(NULL) % getpid());
         first_call = false;
     }
-    usleep (random() % t);
+    usleep(random() % t);
 }
-
-

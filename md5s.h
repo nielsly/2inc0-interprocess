@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "uint128.h"
 
-extern uint128_t  md5s(const char * msg, int mlen);
+extern uint128_t md5s(const char *msg, int mlen);
 
 #endif
-
