@@ -33,7 +33,7 @@
 #include <mqueue.h>
 #include <sys/wait.h>   /* for waitpid() */
 
-#define STUDENT_NAME        "Ruben_Wolters"
+#define STUDENT_NAME        "Niels_Gorter"
 
 static char                 mq_name1[80];
 static char                 mq_name2[80];

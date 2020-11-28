@@ -16,18 +16,17 @@
 
 // TODO: put your definitions of the datastructures here
 typedef struct {
-    char start_char;
-    char end_char;
-    int length;
-    char first_char;
-    uint128_t md5;
-    int list_index;
+    int hash_index;
+    uint128_t input_hash;
+    char input_char;
+    char alphabet_start;
+    char alphabet_end;
+    int max_length;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct {
-    char word[MAX_MESSAGE_LENGTH];
-    int length;
-    int index;
+    int hash_index;
+    char result[MAX_MESSAGE_LENGTH + 1];
 } MQ_RESPONSE_MESSAGE;
 
 #endif
