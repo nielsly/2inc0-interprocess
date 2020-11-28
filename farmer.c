@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
         } else {
             // Read result
             mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
-            if (rsp.result[0] != NULL) {
+            if (!rsp.result[0]) {
                 // Store the result in the output list
                 strcpy(output[rsp.hash_index], "");
                 strcat(output[rsp.hash_index], "'");
