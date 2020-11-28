@@ -37,8 +37,6 @@ int received = 0;
 int msg = 0;
 int found_hashes = 0;
 
-static int get_mq_attr_nrof_messages(mqd_t mq_fd);
-
 int main(int argc, char *argv[])
 {
     if (argc != 1)
@@ -56,8 +54,6 @@ int main(int argc, char *argv[])
     static MQ_RESPONSE_MESSAGE rsp;
     struct mq_attr attr;
 
-    char responses[MD5_LIST_NROF][MAX_MESSAGE_LENGTH + 1];
-
     sprintf(mq_name1, "/mq_request_%s_%d", STUDENT_NAME_1, getpid());
     sprintf(mq_name2, "/mq_response_%s_%d", STUDENT_NAME_2, getpid());
 
@@ -68,7 +64,6 @@ int main(int argc, char *argv[])
     attr.mq_maxmsg = MQ_MAX_MESSAGES;
     attr.mq_msgsize = sizeof(MQ_RESPONSE_MESSAGE);
     mq_fd_response = mq_open(mq_name2, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);
-
 
     //  * create the child processes (see process_test() and message_queue_test())
     for (int i=0; i < NROF_WORKERS; i++) {
@@ -102,7 +97,7 @@ int main(int argc, char *argv[])
             req.hash_index = md5_list_index;
 
             // Send new message
-            mq_send(&mq_fd_request, (char *) &req, sizeof(req), 0);
+            mq_send(mq_fd_request, (char *) &req, sizeof(req), 0);
             nrof_messages++;
 
             if (md5_list_index < MD5_LIST_NROF-1) {
