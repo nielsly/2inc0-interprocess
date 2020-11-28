@@ -26,11 +26,18 @@
 #include "settings.h"
 #include "common.h"
 
-#define STUDENT_NAME    "RubenWolters"
+#define STUDENT_NAME_1    "NielsGorter"
+#define STUDENT_NAME_2    "RubenWolters"
 
 static char mq_name1[80];
 static char mq_name2[80];
 
+int sent = 0;
+int received = 0;
+int msg = 0;
+int found_hashes = 0;
+
+static int get_mq_attr_nrof_messages(mqd_t mq_fd);
 
 int main(int argc, char *argv[])
 {
@@ -41,16 +48,18 @@ int main(int argc, char *argv[])
 
     // TODO:
     //  * create the message queues (see message_queue_test() in interprocess_basic.c)
-    pid_t processID[NROF_WORKERS];
-    mqd_t mq_fd_request;
-    mqd_t mq_fd_response;
+    static pid_t processID[NROF_WORKERS];
+    static mqd_t mq_fd_request;
+    static mqd_t mq_fd_response;
 
-    MQ_REQUEST_MESSAGE req;
-    MQ_RESPONSE_MESSAGE rsp;
+    static MQ_REQUEST_MESSAGE req;
+    static MQ_RESPONSE_MESSAGE rsp;
     struct mq_attr attr;
 
-    sprintf(mq_name1, "\mq_request_%s%d", STUDENT_NAME, getpid());
-    sprintf(mq_name2, "\mq_response_%s%d", STUDENT_NAME, getpid());
+    char responses[MD5_LIST_NROF][MAX_MESSAGE_LENGTH + 1];
+
+    sprintf(mq_name1, "/mq_request_%s_%d", STUDENT_NAME_1, getpid());
+    sprintf(mq_name2, "/mq_response_%s_%d", STUDENT_NAME_2, getpid());
 
     attr.mq_maxmsg = MQ_MAX_MESSAGES;
     attr.mq_msgsize = sizeof(MQ_REQUEST_MESSAGE);
@@ -60,17 +69,17 @@ int main(int argc, char *argv[])
     attr.mq_msgsize = sizeof(MQ_RESPONSE_MESSAGE);
     mq_fd_response = mq_open(mq_name2, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);
 
+
     //  * create the child processes (see process_test() and message_queue_test())
     for (int i=0; i < NROF_WORKERS; i++) {
         processID[i] = fork();
+        
         if (processID[i] < 0) {
             perror("fork() failed");
             exit(1);
-        } else {
-            if (processID[i] == 0) {
-                execlp("./worker", "./worker", mq_name1, mq_name2, NULL);
+        } else if (processID[i] == 0){
+            execlp("./worker", "./worker", mq_name1, mq_name2, NULL);
                 perror("execlp() failed");
-            }
         }
     }
 
@@ -79,18 +88,18 @@ int main(int argc, char *argv[])
     int nrof_messages_received = 0;
     char current_char = ALPHABET_START_CHAR;
     int md5_list_index = 0;
-    char output[6][MAX_MESSAGE_LENGTH + 4];
+    char output[MD5_LIST_NROF][MAX_MESSAGE_LENGTH + 5];
 
 // Wait until all messages are received
     while (nrof_messages < JOBS_NROF) {
         // Start new job
         if (nrof_messages < MQ_MAX_MESSAGES && current_char <= ALPHABET_END_CHAR) {
-            req.start_char = ALPHABET_START_CHAR;
-            req.end_char = ALPHABET_END_CHAR;
-            req.length = MAX_MESSAGE_LENGTH;
-            req.first_char = current_char;
-            req.md5 = md5_list[md5_list_index];
-            req.list_index = md5_list_index;
+            req.alphabet_start = ALPHABET_START_CHAR;
+            req.alphabet_end = ALPHABET_END_CHAR;
+            req.max_length = MAX_MESSAGE_LENGTH;
+            req.input_char = current_char;
+            req.input_hash = md5_list[md5_list_index];
+            req.hash_index = md5_list_index;
 
             // Send new message
             mq_send(&mq_fd_request, (char *) &req, sizeof(req), 0);
@@ -105,21 +114,39 @@ int main(int argc, char *argv[])
         } else {
             // Read result
             mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
-            if (rsp.length > 0) {
+            if (rsp.result[0] != NULL) {
                 // Store the result in the output list
-                strcpy(output[rsp.index], "");
-                strcat(output[rsp.index], "'");
-                strcat(output[rsp.index], rsp.word);
-                strcat(output[rsp.index], "'\n");
+                strcpy(output[rsp.hash_index], "");
+                strcat(output[rsp.hash_index], "'");
+                strcat(output[rsp.hash_index], rsp.result);
+                strcat(output[rsp.hash_index], "'\n");
             }
             nrof_messages--;
             nrof_messages_received++;
         }
     }
 
+    // Output
+    for (int list_index = 0; list_index < MD5_LIST_NROF; list_index++) {
+        fprintf(stdout, "%s", output[list_index]);
+    }
 
     //  * wait until the children have been stopped (see process_test())
+    for (int i = 0; i < NROF_WORKERS; i++) {
+        req.max_length = 0;
+        mq_send(mq_fd_request, (char *) &req, sizeof(req), 0);
+    }
+
+    // Collect all pids of of dead children
+    for (int j = 0; j < NROF_WORKERS; j++) {
+        waitpid(processID[j], NULL, 0);
+    }
+
     //  * clean up the message queues (see message_queue_test())
+    mq_close(mq_fd_response);
+    mq_close(mq_fd_request);
+    mq_unlink(mq_name1);
+    mq_unlink(mq_name2);
 
     // Important notice: make sure that the names of the message queues contain your
     // student name and the process id (to ensure uniqueness during testing)
