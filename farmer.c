@@ -2,8 +2,9 @@
  * Operating Systems <2INCO> Practical Assignment
  * Interprocess Communication
  *
- * Niels Gorter (1332678)
  * Ruben Wolters (1342355)
+ * Niels Gorter (1332678)
+ * 
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
@@ -11,23 +12,14 @@
  * These extra steps must be agreed with the tutor before delivery.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <unistd.h> // for execlp
-#include <mqueue.h> // for mq
-
-#include "md5s.c"
 #include "settings.h"
 #include "common.h"
 
-#define STUDENT_NAME_1    "NielsGorter"
-#define STUDENT_NAME_2    "RubenWolters"
+#define STUDENT_NAME_1 "Niels_Gorter"
+#define STUDENT_NAME_2 "Ruben_Wolters"
 
 static char mq_name1[80];
 static char mq_name2[80];
@@ -63,7 +55,7 @@ int main(int argc, char *argv[])
 
     attr.mq_maxmsg = MQ_MAX_MESSAGES;
     attr.mq_msgsize = sizeof(MQ_RESPONSE_MESSAGE);
-    mq_fd_response = mq_open(mq_name2, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr);
+    mq_fd_response = mq_open(mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr);
 
     //  * create the child processes (see process_test() and message_queue_test())
     for (int i=0; i < NROF_WORKERS; i++) {
@@ -84,11 +76,10 @@ int main(int argc, char *argv[])
     char current_char = ALPHABET_START_CHAR;
     int md5_list_index = 0;
     char output[MD5_LIST_NROF][MAX_MESSAGE_LENGTH + 5];
-
 // Wait until all messages are received
-    while (nrof_messages < JOBS_NROF) {
+    while (nrof_messages_received < JOBS_NROF) {
         // Start new job
-        if (nrof_messages < MQ_MAX_MESSAGES && current_char <= ALPHABET_END_CHAR) {
+        if (nrof_messages < MQ_MAX_MESSAGES && current_char <= ALPHABET_END_CHAR ) {
             req.alphabet_start = ALPHABET_START_CHAR;
             req.alphabet_end = ALPHABET_END_CHAR;
             req.max_length = MAX_MESSAGE_LENGTH;
@@ -98,6 +89,9 @@ int main(int argc, char *argv[])
 
             // Send new message
             mq_send(mq_fd_request, (char *) &req, sizeof(req), 0);
+            #ifdef DEBUG
+            fprintf(stderr,"Farmer sent job %d%c\n", req.hash_index, req.input_char);
+            #endif // DEBUG
             nrof_messages++;
 
             if (md5_list_index < MD5_LIST_NROF-1) {
@@ -109,7 +103,10 @@ int main(int argc, char *argv[])
         } else {
             // Read result
             mq_receive(mq_fd_response, (char *) &rsp, sizeof(rsp), NULL);
-            if (!rsp.result[0]) {
+            #ifdef DEBUG
+            fprintf(stderr,"Farmer received job %d%s\n", rsp.hash_index, rsp.result);
+            #endif // DEBUG
+            if (rsp.result[0]) {
                 // Store the result in the output list
                 strcpy(output[rsp.hash_index], "");
                 strcat(output[rsp.hash_index], "'");
@@ -127,9 +124,12 @@ int main(int argc, char *argv[])
     }
 
     //  * wait until the children have been stopped (see process_test())
-    for (int i = 0; i < NROF_WORKERS; i++) {
-        req.max_length = 0;
+    req.max_length = 0;
+    for (int i = 0; i < NROF_WORKERS; i++) {   
         mq_send(mq_fd_request, (char *) &req, sizeof(req), 0);
+        #ifdef DEBUG
+        fprintf(stderr,"Killing child %d\n", i);
+        #endif // DEBUG
     }
 
     // Collect all pids of of dead children

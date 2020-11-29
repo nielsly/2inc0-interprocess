@@ -11,35 +11,64 @@
  * These extra steps must be agreed with the tutor before delivery.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-#include <errno.h>  // for perror()
-#include <unistd.h> // for getpid()
-#include <mqueue.h> // for mq-stuff
 #include <time.h>   // for time()
 #include <complex.h>
-
-#include "common.h"
 #include "md5s.h"
+#include "common.h"
 
 static void rsleep(int t);
+static void md5_brute_forcer(uint128_t *input_hash, char string[], int cur_length, int *max_length, char *alphabet_start, char *alphabet_end, bool *not_found, char *result);
 
 int main(int argc, char *argv[])
 {
     // TODO:
     // (see message_queue_test() in interprocess_basic.c)
     //  * open the two message queues (whose names are provided in the arguments)
+    mqd_t               mq_fd_request;
+    mqd_t               mq_fd_response;
+    MQ_REQUEST_MESSAGE  req;
+    MQ_RESPONSE_MESSAGE rsp;
+
+    mq_fd_request = mq_open (argv[1], O_RDONLY);
+	mq_fd_response = mq_open (argv[2], O_WRONLY);
+
     //  * repeatingly:
     //      - read from a message queue the new job to do
-    //      - wait a random amount of time (e.g. rsleep(10000);)
-    //      - do that job
-    //      - write the results to a message queue
-    //    until there are no more tasks to do
-    //  * close the message queues
+    while(true) {
+        mq_receive (mq_fd_request, (char*) &req, sizeof(req), NULL);
+        #ifdef DEBUG
+        fprintf(stderr,"Worker received job %d%c\n", req.hash_index, req.input_char);
+        #endif // DEBUG
+        //      - wait a random amount of time (e.g. rsleep(10000);)
+        rsleep(10000);
+        //      - do that job
+        strcpy(rsp.result, "");
 
-    return (0);
+        if (req.max_length > 0) {
+            char start_string[2] = {req.input_char, '\0'};
+            rsp.hash_index = req.hash_index;
+            bool not_found = true;
+            md5_brute_forcer(&req.input_hash, start_string, 2, &req.max_length, &req.alphabet_start, &req.alphabet_end, &not_found, rsp.result);
+        } else {
+            #ifdef DEBUG
+            fprintf(stderr,"Worker: killing myself, bye!\n");
+            #endif // DEBUG
+            break;
+        }
+
+        //      - write the results to a message queue
+
+        mq_send (mq_fd_response, (char*) &rsp, sizeof(rsp), 0);
+        #ifdef DEBUG
+        fprintf(stderr,"Worker sent job %d%s\n", rsp.hash_index, rsp.result);
+        #endif // DEBUG
+    }
+            
+    //  * close the message queues        
+    mq_close (mq_fd_response);
+    mq_close (mq_fd_request);
+
+    return 0;
 }
 
 /*
@@ -59,4 +88,23 @@ static void rsleep(int t)
         first_call = false;
     }
     usleep(random() % t);
+}
+
+static void md5_brute_forcer(uint128_t *input_hash, char string[], int cur_length, int *max_length, char *alphabet_start, char *alphabet_end, bool *not_found, char *result) {
+    uint128_t check_hash;
+    check_hash = md5s(string, cur_length - 1);
+
+    if (check_hash == *input_hash) {
+        *not_found = false;
+        strcpy(result, string);
+    } else if (cur_length <= *max_length) {
+        // max_length is max amount of non-\0 chars, so we check <= as cur_length includes \0
+        for (char i = *alphabet_start; i <= *alphabet_end && *not_found; i++) {
+            char next_string[cur_length + 1];
+            strcpy(next_string, string);
+            next_string[cur_length - 1] = i;
+            next_string[cur_length] = '\0';
+            md5_brute_forcer(input_hash, next_string, cur_length + 1, max_length, alphabet_start, alphabet_end, not_found, result);
+        }
+    }
 }

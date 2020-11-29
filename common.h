@@ -8,8 +8,18 @@
 
 #ifndef COMMON_H
 #define COMMON_H
+//#define DEBUG
 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h> // for execlp
+#include <mqueue.h> // for mq
 #include "uint128.h"
+
 
 // maximum size for any message in the tests
 #define MAX_MESSAGE_LENGTH 6
