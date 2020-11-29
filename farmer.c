@@ -24,11 +24,6 @@
 static char mq_name1[80];
 static char mq_name2[80];
 
-int sent = 0;
-int received = 0;
-int msg = 0;
-int found_hashes = 0;
-
 int main(int argc, char *argv[])
 {
     if (argc != 1)
@@ -80,12 +75,12 @@ int main(int argc, char *argv[])
     while (nrof_messages_received < JOBS_NROF) {
         // Start new job
         if (nrof_messages < MQ_MAX_MESSAGES && current_char <= ALPHABET_END_CHAR ) {
+            req.hash_index = md5_list_index;
+            req.input_hash = md5_list[md5_list_index];
+            req.input_char = current_char;
             req.alphabet_start = ALPHABET_START_CHAR;
             req.alphabet_end = ALPHABET_END_CHAR;
             req.max_length = MAX_MESSAGE_LENGTH;
-            req.input_char = current_char;
-            req.input_hash = md5_list[md5_list_index];
-            req.hash_index = md5_list_index;
 
             // Send new message
             mq_send(mq_fd_request, (char *) &req, sizeof(req), 0);
@@ -108,10 +103,7 @@ int main(int argc, char *argv[])
             #endif // DEBUG
             if (rsp.result[0]) {
                 // Store the result in the output list
-                strcpy(output[rsp.hash_index], "");
-                strcat(output[rsp.hash_index], "'");
-                strcat(output[rsp.hash_index], rsp.result);
-                strcat(output[rsp.hash_index], "'\n");
+                sprintf(output[rsp.hash_index], "'%s'\n", rsp.result);
             }
             nrof_messages--;
             nrof_messages_received++;

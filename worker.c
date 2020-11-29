@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
             char start_string[2] = {req.input_char, '\0'};
             rsp.hash_index = req.hash_index;
             bool not_found = true;
+            //find and possibly set response string, else string remains empty
             md5_brute_forcer(&req.input_hash, start_string, 2, &req.max_length, &req.alphabet_start, &req.alphabet_end, &not_found, rsp.result);
         } else {
             #ifdef DEBUG
